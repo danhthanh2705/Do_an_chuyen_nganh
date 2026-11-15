@@ -4,6 +4,7 @@ import { Bot, ChevronDown, ImagePlus, Minimize2, Send, ThumbsDown, ThumbsUp, Use
 import { Link } from 'react-router-dom';
 import { aiFeedbackApi } from '../../api/aiFeedback';
 import { cartApi } from '../../api/cart';
+import { errorMessage } from '../../api/client';
 import { chatApi } from '../../api/chat';
 import type { ChatMessage, ChatSession } from '../../types/chat';
 import { useAuth } from '../../store/AuthContext';
@@ -14,11 +15,11 @@ import { ProductImage } from '../product/ProductImage';
 import type { Product } from '../../types/product';
 
 const MAX_IMAGES = 4;
-const GREETING = 'Xin chào! Mình có thể giúp bạn tìm sản phẩm, xem khuyến mãi và chính sách giao nhận.';
+const GREETING = 'Xin chào! Mình có thể tư vấn món ăn, hướng dẫn cách nấu và gợi ý sản phẩm phù hợp tại Muadee. Bạn đang muốn nấu món gì hôm nay?';
 const QUICK_PROMPTS = [
-  'Nguyên liệu nấu canh chua',
-  'Có voucher nào đang áp dụng?',
-  'Chính sách giao hàng và nhận tại cửa hàng',
+  'Gợi ý thực đơn tối nay cho gia đình',
+  'Cách nấu canh chua cá',
+  'Chọn sữa phù hợp cho bé',
   'Tra cứu đơn hàng của tôi',
 ];
 
@@ -133,8 +134,9 @@ export function ChatWidget({ open, onClose, resumeSessionId }: { open: boolean; 
         const response = await chatApi.sendImages(session.sessionId, sent.map((item) => item.file), message, storeId);
         setMessages((current) => [...current, newMessage('assistant', response.answer, { id: response.messageId ?? crypto.randomUUID(), products: response.products ?? [] })]);
         if (response.status || response.needHandover) setSession((s) => s ? { ...s, status: response.status ?? 'HANDED_OVER' } : s);
-      } catch {
-        setMessages((current) => [...current, newMessage('assistant', 'Trợ lý chưa phân tích được ảnh, bạn có muốn chuyển sang nhân viên CSKH không?', { id: `error-${crypto.randomUUID()}` })]);
+      } catch (error) {
+        const detail = errorMessage(error);
+        setMessages((current) => [...current, newMessage('assistant', `Trợ lý chưa phân tích được ảnh${detail ? ` (${detail})` : ''}. Bạn thử ảnh rõ hơn hoặc chuyển sang nhân viên CSKH nhé.`, { id: `error-${crypto.randomUUID()}` })]);
       } finally { setSending(false); }
       return;
     }
@@ -242,7 +244,7 @@ export function ChatWidget({ open, onClose, resumeSessionId }: { open: boolean; 
           {message.images?.length ? <div className="chat-attachments">{message.images.map((src) => <img key={src} src={src} alt="Ảnh đã gửi" />)}</div> : null}
           <p>{message.content}</p>
           {message.loginRequired && <Link className="chat-login-link" to={`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`}>Đăng nhập</Link>}
-          {message.products?.length ? <div className="chat-product-list">{message.products.filter((product) => product.status === 'ACTIVE' && product.stock > 0).map((product) => <article className="chat-product-card" key={product.productId}><Link to={`/products/${product.productId}`} onClick={() => setMinimized(true)}><ProductImage src={product.image} alt={product.productName} /></Link><div><Link to={`/products/${product.productId}`} onClick={() => setMinimized(true)}><strong>{product.productName}</strong></Link><small>{product.price.toLocaleString('vi-VN')}đ/{product.unit}</small><Link className="chat-product-detail-link" to={`/products/${product.productId}`} onClick={() => setMinimized(true)}>Xem chi tiết</Link><button type="button" onClick={() => void addSuggestedProduct(product)}>Thêm vào giỏ</button></div></article>)}</div> : null}
+          {message.products?.length ? <div className="chat-product-list">{message.products.filter((product) => product.status === 'ACTIVE' && product.stock > 0).map((product) => <article className="chat-product-card" key={product.productId}><Link to={`/products/${product.productId}`} onClick={() => setMinimized(true)}><ProductImage src={product.image} alt={product.productName} /></Link><div><Link to={`/products/${product.productId}`} onClick={() => setMinimized(true)}><strong>{product.productName}</strong></Link><small>{product.price.toLocaleString('vi-VN')}đ/{product.unit}</small><div className="chat-product-actions"><Link className="chat-product-detail-link" to={`/products/${product.productId}`} onClick={() => setMinimized(true)}>Xem chi tiết</Link><button type="button" onClick={() => void addSuggestedProduct(product)}>Thêm vào giỏ</button></div></div></article>)}</div> : null}
           {message.role === 'assistant' && user?.role === 'CUSTOMER' && <div className="chat-message-feedback"><span>Hữu ích?</span><button type="button" aria-label="Câu trả lời hữu ích" disabled={feedbackGiven.includes(message.id)} onClick={() => void sendFeedback(message.id, true)}><ThumbsUp size={13} /></button><button type="button" aria-label="Câu trả lời chưa hữu ích" disabled={feedbackGiven.includes(message.id)} onClick={() => void sendFeedback(message.id, false)}><ThumbsDown size={13} /></button></div>}
           {message.content.includes('có muốn chuyển sang nhân viên') && <button className="inline-handover" type="button" onClick={() => void requestHandover()}>Chuyển nhân viên</button>}
         </div>)}

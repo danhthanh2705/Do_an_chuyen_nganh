@@ -1,7 +1,11 @@
+import logging
+
 from fastapi import Depends, FastAPI
 
 from app.core.security import verify_internal_key
 from app.routers import chatbot, forecast, image, recommendation
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 app = FastAPI(title="AI Service - Supermarket B2C", version="0.1.0")
 

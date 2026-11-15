@@ -66,7 +66,7 @@ export class ChatService {
         message: content,
         storeId,
         history: history.reverse().map((item) => ({ role: ROLES[item.senderType], content: item.content })),
-        customerContext: await this.customerContext(session.customerId),
+        customerContext: await this.customerContext(session.customerId, storeId),
       });
       ({ answer, sources, needHandover } = result);
       if (storeId && result.productIds?.length) products = await this.recommendations.hydrate(result.productIds, storeId);
@@ -178,11 +178,29 @@ export class ChatService {
   }
 
   // Chỉ gửi thông tin đơn hàng không nhạy cảm cho AI.
-  private async customerContext(customerId?: string): Promise<Record<string, unknown> | undefined> {
-    if (!customerId) return undefined;
-    const orders = await this.orders.find({ customerId }).sort({ createdAt: -1 }).limit(3)
-      .select('orderCode orderStatus paymentStatus totalAmount receiveMethod').lean().exec();
-    return { recentOrders: orders.map((order) => ({ orderCode: order.orderCode, status: order.orderStatus, paymentStatus: order.paymentStatus, totalAmount: order.totalAmount, receiveMethod: order.receiveMethod })) };
+  private async customerContext(customerId?: string, storeId?: string): Promise<Record<string, unknown> | undefined> {
+    const [orders, store] = await Promise.all([
+      customerId
+        ? this.orders.find({ customerId }).sort({ createdAt: -1 }).limit(3)
+          .select('orderCode orderStatus paymentStatus totalAmount receiveMethod').lean().exec()
+        : Promise.resolve([]),
+      storeId
+        ? this.stores.findOne({ storeId, status: 'ACTIVE' }).select('storeName').lean().exec()
+        : Promise.resolve(null),
+    ]);
+    if (!customerId && !storeId) return undefined;
+    return {
+      ...(store?.storeName ? { storeName: store.storeName } : {}),
+      ...(orders.length ? {
+        recentOrders: orders.map((order) => ({
+          orderCode: order.orderCode,
+          status: order.orderStatus,
+          paymentStatus: order.paymentStatus,
+          totalAmount: order.totalAmount,
+          receiveMethod: order.receiveMethod,
+        })),
+      } : {}),
+    };
   }
 
   private async agentName(employeeId?: string): Promise<string | undefined> {

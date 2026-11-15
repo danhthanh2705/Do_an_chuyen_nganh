@@ -13,7 +13,7 @@ React + TypeScript -> REST API (NestJS) -> MongoDB
 |---|---|---|
 | `frontend/` | React, TypeScript, Vite | Luồng khách hàng có trang sản phẩm, giỏ hàng, checkout, thanh toán, đơn hàng và tài khoản. Có chế độ mock `VITE_USE_MOCK=true`. Route `/staff` và `/admin` hiện chỉ hiển thị trang TODO. |
 | `backend/` | NestJS, Mongoose | API đang đăng ký: health, auth, hồ sơ hiện tại, categories, products, stores, cart, vouchers, inventory, orders và payments. Chi tiết ở [API hiện hành](docs/api/API.md). |
-| `ai-service/` | FastAPI, PyMongo, Ollama, CLIP, EasyOCR | `/chat` (gợi ý sản phẩm, LLM Ollama hoặc OpenAI, có fallback từ khóa), `/recommend` (sản phẩm tương tự/bán chạy bằng TF-IDF), `/image/analyze` (CLIP tìm sản phẩm giống ảnh, OCR, mô tả ảnh bằng moondream, tối đa 4 ảnh). `/forecast/run` vẫn là placeholder. |
+| `ai-service/` | FastAPI, PyMongo, Claude Vision | `/chat` (tư vấn dẫn dắt + tool tìm sản phẩm, fallback từ khóa), `/recommend` (TF-IDF), `/image/analyze` (Claude Vision mô tả/OCR ảnh, khớp sản phẩm thật, tối đa 4 ảnh), `/forecast/run` vẫn là placeholder. |
 | `database/` | MongoDB scripts/seed | Seed dữ liệu mẫu, tạo indexes; schema ứng dụng nằm trong `backend/src/modules/*/schemas`. |
 | `docs/` | Markdown + Mermaid | API và UML phải phản ánh endpoint/luồng đã triển khai. Sơ đồ hiện hành ở `docs/uml/`. |
 
@@ -73,16 +73,43 @@ uvicorn app.main:app --reload --port 8000
 
 Backend Swagger: `http://localhost:3000/api/docs`; frontend Vite: `http://localhost:5173`; AI docs: `http://localhost:8000/docs`.
 
-### Tính năng AI (tùy chọn)
+### Chatbot AI (Claude)
 
-Không cần Ollama thì web vẫn chạy; chatbot chỉ tìm theo từ khóa, không mô tả được ảnh. Để dùng đủ AI trên máy của bạn:
+Backend gọi AI service qua `AI_SERVICE_URL`; AI service gọi Claude Messages API khi có key, nếu lỗi/chưa có key sẽ fallback tìm sản phẩm theo từ khóa (chat vẫn hoạt động).
 
-```powershell
-ollama pull qwen2.5:3b
-ollama pull moondream
+Cấu hình trong `.env` ở thư mục gốc:
+
+```dotenv
+LLM_PROVIDER=anthropic
+ANTHROPIC_API_KEY=sk-ant-...
+LLM_MODEL=claude-haiku-4-5
+LLM_MAX_TOKENS=1000
+LLM_TIMEOUT_SECONDS=60
+AI_SERVICE_TIMEOUT_MS=90000
 ```
 
-Trong `.env`: `LLM_PROVIDER=ollama`, `LLM_MODEL=qwen2.5:3b`, `AI_SERVICE_TIMEOUT_MS=60000` (model chạy CPU, mỗi câu 15–50 giây). Lần gọi ảnh đầu tiên chậm vì phải nạp model và dựng chỉ mục CLIP. Người chỉ muốn xem giao diện có thể chạy frontend và trỏ tới backend/ai-service của người khác.
+Nếu dùng relay/proxy Claude, dùng đường OpenAI-compatible (nhanh và ổn định tool-calling):
+
+```dotenv
+LLM_PROVIDER=openai
+LLM_API_KEY=sk-...
+LLM_BASE_URL=https://<relay-domain>/v1
+LLM_MODEL=<model-id-lay-tu-/v1/models>
+```
+
+Chạy AI service:
+
+```bash
+cd ai-service
+python3 -m venv .venv
+.venv/bin/pip install "fastapi>=0.115" "uvicorn[standard]>=0.30" "pydantic>=2.7" "pydantic-settings>=2.3" "pymongo>=4.8" "httpx>=0.27" python-multipart pillow numpy
+.venv/bin/uvicorn app.main:app --reload --port 8000
+```
+
+- Model đang dùng: `claude-haiku-4-5` (nhanh/rẻ); có thể đổi sang model Claude khác mà relay/Anthropic hỗ trợ.
+- Muốn dùng Ollama cũ: `LLM_PROVIDER=ollama`, `LLM_MODEL=qwen2.5:3b` và bỏ key.
+- Chatbot phân tích ảnh bằng Claude Vision: mô tả ảnh, đọc chữ (OCR), nhận diện nguyên liệu/sản phẩm và gợi ý sản phẩm thật; tối đa 4 ảnh, 5 MB/ảnh.
+- Chi tiết + kiểm thử: [docs/ai/chatbot-claude.md](docs/ai/chatbot-claude.md).
 
 ### Ảnh sản phẩm (Cloudinary)
 

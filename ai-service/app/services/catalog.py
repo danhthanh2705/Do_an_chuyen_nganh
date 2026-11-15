@@ -26,6 +26,10 @@ QUERY_STOPWORDS = {
     "ban", "co", "khong", "toi", "minh", "muon", "mua", "can", "tim", "cho", "xin", "oi", "nhe", "nha", "a",
     "la", "cua", "va", "voi", "o", "dau", "nao", "gi", "bao", "nhieu", "duoc", "hay", "di", "the", "nay",
     "shop", "cua hang", "sieu thi", "ben",
+    # Tu hoi/generic khong nen dung de loc san pham
+    "chon", "phu", "hop", "loai", "tot", "ngon", "tu", "van", "goi", "y", "thuc", "don", "gia", "dinh",
+    "be", "em", "tre", "con", "nho", "nguoi", "lon", "hom", "nay", "cach", "che", "bien", "nau", "lam",
+    "mon", "cong", "thuc", "an", "uong", "dung", "nen", "thich", "hop", "voi",
 }
 
 
@@ -53,6 +57,9 @@ def _load() -> list[dict]:
             "productId": p["productId"],
             "name": p.get("productName", ""),
             "price": p.get("price", 0),
+            "unit": p.get("unit", ""),
+            "categoryId": p.get("categoryId", ""),
+            "categoryName": categories.get(p.get("categoryId"), ""),
             "soldCount": p.get("soldCount", 0),
             "tokens": Counter(tokenize(text)),
         })
@@ -90,7 +97,24 @@ def _cosine(a: dict, b: dict) -> float:
     return sum(v * b.get(t, 0.0) for t, v in a.items())
 
 
-def _rank(query_vec: dict, store_id: str | None, limit: int, exclude: set[str] | None = None, min_score: float = 0.0):
+def _phrase_bonus(query: str, name: str) -> float:
+    """Uu tien ten san pham chua cum tu khoa (2-3 tu) thay vi chi trung 1 token.
+
+    Vi du "ca hoi" phai xep tren "ca chua"/"ca phe" du ca hai deu co token "ca".
+    """
+    words = [w for w in re.findall(r"[a-z0-9]+", normalize(query)) if w not in QUERY_STOPWORDS]
+    name_norm = normalize(name)
+    best = 0
+    for size in (3, 2):
+        for index in range(len(words) - size + 1):
+            phrase = " ".join(words[index:index + size])
+            if phrase in name_norm:
+                best = max(best, size)
+    return best * 0.2
+
+
+def _rank(query_vec: dict, store_id: str | None, limit: int, exclude: set[str] | None = None,
+          min_score: float = 0.0, query_text: str | None = None):
     docs = _load()
     stock = _in_stock(store_id)
     excluded = exclude or set()
@@ -99,10 +123,20 @@ def _rank(query_vec: dict, store_id: str | None, limit: int, exclude: set[str] |
         if d["productId"] in excluded or (stock is not None and d["productId"] not in stock):
             continue
         s = _cosine(query_vec, d["vec"])
+        if query_text:
+            s += _phrase_bonus(query_text, d["name"])
         if s > min_score:
             scored.append((d, s))
     scored.sort(key=lambda x: x[1], reverse=True)
-    return [{"productId": d["productId"], "name": d["name"], "price": d["price"], "score": round(s, 4)} for d, s in scored[:limit]]
+    return [{
+        "productId": d["productId"],
+        "name": d["name"],
+        "price": d["price"],
+        "unit": d.get("unit", ""),
+        "categoryName": d.get("categoryName", ""),
+        "inStock": True,
+        "score": round(s, 4),
+    } for d, s in scored[:limit]]
 
 
 def search(query: str, store_id: str | None, limit: int = 5) -> list[dict]:
@@ -111,7 +145,30 @@ def search(query: str, store_id: str | None, limit: int = 5) -> list[dict]:
     counts = Counter(t for t in query_tokens(query) if t in idf)
     vec = {t: c * idf[t] for t, c in counts.items()}
     norm = math.sqrt(sum(v * v for v in vec.values())) or 1.0
-    return _rank({t: v / norm for t, v in vec.items()}, store_id, limit, min_score=0.05) if docs else []
+    if not docs or not vec:
+        return []
+    # Lay rong hon roi cat theo diem tuong doi de loai ket qua chi trung 1 token chung chung
+    # (vi du "ca phe" lot vao ket qua cua "ca hoi").
+    ranked = _rank({t: v / norm for t, v in vec.items()}, store_id, max(limit * 4, 12),
+                   min_score=0.05, query_text=query)
+    if not ranked:
+        return []
+    # Voi cau hoi nhieu tu, yeu cau san pham khop phan lon tu khoa hoac khop cum
+    # (vi du "nuoc tuong" khong duoc tra ve "nuoc suoi"/"nuoc cam").
+    query_words = {w for w in re.findall(r"[a-z0-9]+", normalize(query)) if w not in QUERY_STOPWORDS}
+    filtered = []
+    for row in ranked:
+        name_words = set(re.findall(r"[a-z0-9]+", normalize(row["name"])))
+        coverage = len(query_words & name_words) / len(query_words) if query_words else 1.0
+        phrase = _phrase_bonus(query, row["name"])
+        if len(query_words) >= 2 and coverage < 0.6 and phrase < 0.4:
+            continue
+        filtered.append(row)
+    if not filtered:
+        return []
+    top = filtered[0]["score"]
+    cutoff = max(0.05, top * 0.42)
+    return [row for row in filtered if row["score"] >= cutoff][:limit]
 
 
 def similar(product_id: str, store_id: str | None, limit: int = 8) -> list[dict]:

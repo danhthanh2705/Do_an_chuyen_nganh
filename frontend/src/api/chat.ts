@@ -3,6 +3,13 @@ import { mockProducts } from './mock/data';
 import { mockSupportHistory } from './mock/account';
 import { http, isMockEnabled, unwrapApiResponse } from './client';
 
+function isRetryableImageError(error: unknown): boolean {
+  const status = typeof error === 'object' && error !== null && 'response' in error
+    ? (error as { response?: { status?: number } }).response?.status
+    : undefined;
+  return status === undefined || status >= 500;
+}
+
 const mockSessions = new Map<string, ChatSession>();
 const mockTranscript = new Map<string, ChatMessage[]>();
 const delay = (duration: number) => new Promise<void>((resolve) => window.setTimeout(resolve, duration));
@@ -46,7 +53,7 @@ export const chatApi = {
       mockSessions.set(sessionId, { sessionId, status });
       return { answer, messageId: assistantMessage.id, products, status };
     }
-    return http.post<{ success: true; data: ChatResult }>(`/chat/sessions/${sessionId}/messages`, { content, storeId }, { timeout: 65000 }).then(unwrapApiResponse);
+    return http.post<{ success: true; data: ChatResult }>(`/chat/sessions/${sessionId}/messages`, { content, storeId }, { timeout: 95000 }).then(unwrapApiResponse);
   },
   sendImages: async (sessionId: string, files: File[], content: string, storeId: string): Promise<ChatResult> => {
     if (isMockEnabled) {
@@ -58,7 +65,18 @@ export const chatApi = {
     files.forEach((file) => form.append('images', file));
     form.append('content', content);
     if (storeId) form.append('storeId', storeId);
-    return http.post<{ success: true; data: ChatResult }>(`/chat/sessions/${sessionId}/images`, form, { timeout: 240000, headers: { 'Content-Type': 'multipart/form-data' } }).then(unwrapApiResponse);
+    const request = () => http.post<{ success: true; data: ChatResult }>(
+      `/chat/sessions/${sessionId}/images`,
+      form,
+      { timeout: 240000 },
+    ).then(unwrapApiResponse);
+    try {
+      return await request();
+    } catch (error) {
+      if (!isRetryableImageError(error)) throw error;
+      await delay(800);
+      return request();
+    }
   },
   handover: async (sessionId: string, storeId?: string): Promise<ChatSession> => {
     if (isMockEnabled) {

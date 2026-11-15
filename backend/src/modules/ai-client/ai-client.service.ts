@@ -73,7 +73,11 @@ export class AiClientService {
       body: form,
       signal: AbortSignal.timeout(Math.max(ai.timeoutMs, 240_000)),
     });
-    if (!response.ok) throw new Error(`AI service error ${response.status}`);
+    if (!response.ok) {
+      const detail = await response.text().catch(() => '');
+      this.logger.warn(`AI service /image/analyze responded ${response.status}: ${detail.slice(0, 300)}`);
+      throw new Error(`AI service error ${response.status}`);
+    }
     return (await response.json()) as AiImageResponse;
   }
 
