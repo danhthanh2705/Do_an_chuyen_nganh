@@ -10,7 +10,6 @@ import AdminVouchersPage from '../pages/admin/vouchers/AdminVouchersPage';
 import AdminInventoryPage from '../pages/admin/inventory/AdminInventoryPage';
 import AdminOrdersPage from '../pages/admin/orders/AdminOrdersPage';
 import AdminCreateEmployeePage from '../pages/admin/employees/AdminCreateEmployeePage';
-import AdminForecastPage from '../pages/admin/ai-forecast/AdminForecastPage';
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
 import LoginPage from '../pages/auth/LoginPage';
 import RegisterPage from '../pages/auth/RegisterPage';
@@ -103,7 +102,6 @@ export function AppRoutes() {
         <Route path="orders/:id" element={<AdminOrdersPage />} />
         <Route path="orders" element={<AdminOrdersPage />} />
         <Route path="employees" element={<AdminCreateEmployeePage />} />
-        <Route path="forecast" element={<AdminForecastPage />} />
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

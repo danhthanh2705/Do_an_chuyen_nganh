@@ -170,7 +170,6 @@ FastAPI hiện expose trực tiếp (không qua backend API):
 | GET | `/health` | Public | Health check. |
 | POST | `/chat` | `X-Internal-Key` nếu `INTERNAL_API_KEY` được cấu hình | Schema hoạt động; trả câu trả lời mẫu, chưa tích hợp LLM/RAG. |
 | POST | `/recommend` | Như trên | Endpoint hoạt động nhưng service trả danh sách rỗng placeholder. |
-| POST | `/forecast/run` | Như trên | Endpoint hoạt động nhưng service trả kết quả rỗng placeholder. |
 
 `ai-service` có Mongo connection helper nhưng các service AI hiện chưa gọi helper này. Trong cấu hình development để trống `INTERNAL_API_KEY` thì guard bỏ qua kiểm tra key; cấu hình key để bật kiểm tra.
 
@@ -182,7 +181,7 @@ Các phần sau có trong API thiết kế cũ hoặc thư mục/schema, nhưng 
 - Membership/điểm thưởng API, review API và quản lý đánh giá.
 - Delivery tracking/webhook/fulfillment API.
 - Reports/dashboard API.
-- Backend chat sessions/messages/knowledge/AI config/feedback/activities/recommendations/forecasts.
+- Backend chat sessions/messages/knowledge/AI config/feedback/activities/recommendations.
 - AI client/backend fallback tích hợp với FastAPI.
 
 ## Liên hệ tài liệu

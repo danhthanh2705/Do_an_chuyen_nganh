@@ -11,7 +11,6 @@ import { ChatSessionSchema } from '../../src/modules/chat-sessions/schemas/chat-
 import { CounterSchema } from '../../src/modules/counters/schemas/counter.schema';
 import { CustomerSchema } from '../../src/modules/customers/schemas/customer.schema';
 import { DeliverySchema } from '../../src/modules/deliveries/schemas/delivery.schema';
-import { DemandForecastSchema } from '../../src/modules/demand-forecasts/schemas/demand-forecast.schema';
 import { EmployeeSchema } from '../../src/modules/employees/schemas/employee.schema';
 import { InventorySchema } from '../../src/modules/inventory/schemas/inventory.schema';
 import { KnowledgeDocumentSchema } from '../../src/modules/knowledge-documents/schemas/knowledge-document.schema';
@@ -45,7 +44,6 @@ const schemas: SchemaCollection[] = [
   { name: 'Counter', collection: 'counters', schema: CounterSchema },
   { name: 'Customer', collection: 'customers', schema: CustomerSchema },
   { name: 'Delivery', collection: 'deliveries', schema: DeliverySchema },
-  { name: 'DemandForecast', collection: 'demandforecasts', schema: DemandForecastSchema },
   { name: 'Employee', collection: 'employees', schema: EmployeeSchema },
   { name: 'Inventory', collection: 'inventories', schema: InventorySchema },
   { name: 'KnowledgeDocument', collection: 'knowledgedocuments', schema: KnowledgeDocumentSchema },

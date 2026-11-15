@@ -22,9 +22,9 @@ def test_chat_returns_answer():
     assert "answer" in r.json()
 
 
-def test_recommend_and_forecast_shapes():
+def test_recommend_shape():
     assert client.post("/recommend", json={"storeId": "s1"}).json()["items"] == []
-    assert client.post("/forecast/run", json={"storeId": "s1"}).json()["results"] == []
+    assert "/forecast/run" not in app.openapi()["paths"]
 
 
 def test_internal_key_required(monkeypatch):

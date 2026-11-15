@@ -55,4 +55,52 @@ export class EmployeeAccountsService {
     // Không trả mật khẩu hoặc hash mật khẩu trong API.
     return { userId, employeeId, fullName: dto.fullName.trim(), email, employeeCode, employeeRole: dto.employeeRole.trim(), storeId: dto.storeId };
   }
+
+  async list() {
+    const employeeRows = await this.employees.find().sort({ storeId: 1, employeeCode: 1 }).lean().exec();
+    const userRows = await this.users.find({
+      userId: { $in: employeeRows.map((employee) => employee.userId) },
+      role: Role.STAFF,
+    }).select('userId fullName email phone status').lean().exec();
+    const usersById = new Map(userRows.map((user) => [user.userId, user]));
+    return employeeRows.flatMap((employee) => {
+      const user = usersById.get(employee.userId);
+      return user ? [{
+        userId: user.userId,
+        employeeId: employee.employeeId,
+        fullName: user.fullName,
+        email: user.email,
+        phone: user.phone ?? '',
+        status: user.status,
+        employeeCode: employee.employeeCode,
+        employeeRole: employee.employeeRole,
+        storeId: employee.storeId,
+      }] : [];
+    });
+  }
+
+  async updateStatus(userId: string, status: UserStatus) {
+    const user = await this.users.findOneAndUpdate(
+      { userId, role: Role.STAFF },
+      { $set: { status, refreshTokenHashes: [] } },
+      { new: true, projection: { userId: 1, status: 1 } },
+    ).lean().exec();
+    if (!user) throw new NotFoundException('Không tìm thấy tài khoản nhân viên');
+    return { userId: user.userId, status: user.status };
+  }
+
+  async delete(userId: string) {
+    const session = await this.connection.startSession();
+    try {
+      await session.withTransaction(async () => {
+        const user = await this.users.findOne({ userId, role: Role.STAFF }).session(session).lean().exec();
+        if (!user) throw new NotFoundException('Không tìm thấy tài khoản nhân viên');
+        await this.employees.deleteOne({ userId }).session(session).exec();
+        await this.users.deleteOne({ userId, role: Role.STAFF }).session(session).exec();
+      });
+    } finally {
+      await session.endSession();
+    }
+    return { deleted: true, userId };
+  }
 }

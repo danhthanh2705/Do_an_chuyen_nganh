@@ -27,7 +27,6 @@ import { UserActivitiesModule } from './modules/user-activities/user-activities.
 import { AiFeedbackModule } from './modules/ai-feedback/ai-feedback.module';
 import { RecommendationsModule } from './modules/recommendations/recommendations.module';
 import { ChatModule } from './modules/chat/chat.module';
-import { ForecastsModule } from './modules/forecasts/forecasts.module';
 import { EmployeesModule } from './modules/employees/employees.module';
 
 @Module({
@@ -54,7 +53,6 @@ import { EmployeesModule } from './modules/employees/employees.module';
     AiFeedbackModule,
     RecommendationsModule,
     ChatModule,
-    ForecastsModule,
     EmployeesModule,
     // Them module moi (products, orders, ...) vao day
   ],

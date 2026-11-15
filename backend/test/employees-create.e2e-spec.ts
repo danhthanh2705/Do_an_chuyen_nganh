@@ -71,5 +71,16 @@ describe('Tạo tài khoản nhân viên (e2e)', () => {
     await request(app.getHttpServer()).post('/api/v1/employees').set('Authorization', 'Bearer admin-test').send(body).expect(409);
     await request(app.getHttpServer()).post('/api/v1/employees').set('Authorization', 'Bearer admin-test').send({ ...body, email: 'different@example.test' }).expect(409);
     expect(await users.countDocuments()).toBe(1);
+
+    const listed = await request(app.getHttpServer()).get('/api/v1/employees').set('Authorization', 'Bearer admin-test').expect(200);
+    expect(listed.body.data).toHaveLength(1);
+    expect(listed.body.data[0]).toMatchObject({ userId: user!.userId, status: 'ACTIVE', storeId: 'store-1' });
+    await request(app.getHttpServer()).patch(`/api/v1/employees/${user!.userId}/status`).set('Authorization', 'Bearer staff-test').send({ status: 'LOCKED' }).expect(403);
+    await request(app.getHttpServer()).patch(`/api/v1/employees/${user!.userId}/status`).set('Authorization', 'Bearer admin-test').send({ status: 'LOCKED' }).expect(200);
+    expect(await users.findOne({ userId: user!.userId }).select('+refreshTokenHashes').lean().exec()).toMatchObject({ status: 'LOCKED', refreshTokenHashes: [] });
+    await request(app.getHttpServer()).patch(`/api/v1/employees/${user!.userId}/status`).set('Authorization', 'Bearer admin-test').send({ status: 'ACTIVE' }).expect(200);
+    await request(app.getHttpServer()).delete(`/api/v1/employees/${user!.userId}`).set('Authorization', 'Bearer admin-test').expect(200);
+    expect(await users.countDocuments()).toBe(0);
+    expect(await employees.countDocuments()).toBe(0);
   });
 });

@@ -20,6 +20,9 @@ describe('database seed', () => {
 
   it('tạo 30 sản phẩm, 600 đơn và chạy lặp lại không nhân bản dữ liệu', async () => {
     const uri = replicaSet.getUri('muadee_seed_test');
+    const legacyConnection = await createConnection(uri).asPromise();
+    await legacyConnection.collection('demandforecasts').insertOne({ forecastId: 'legacy-forecast' });
+    await legacyConnection.close();
     await createIndexes(uri);
     await seedDatabase(uri, true);
     await seedDatabase(uri, false);
@@ -30,7 +33,9 @@ describe('database seed', () => {
     expect(await connection.collection('inventories').countDocuments()).toBe(90);
     expect(await connection.collection('users').countDocuments()).toBe(34);
     expect(await connection.collection('knowledgedocuments').countDocuments()).toBe(30);
-    expect(await connection.collection('aiconfigs').countDocuments()).toBe(3);
+    expect(await connection.collection('aiconfigs').countDocuments()).toBe(2);
+    expect(await connection.collection('demandforecasts').countDocuments()).toBe(0);
+    expect(await connection.db!.listCollections({ name: 'demandforecasts' }, { nameOnly: true }).hasNext()).toBe(false);
     const userIndexes = await connection.collection('users').indexes();
     expect(userIndexes.some((index) => index.name === 'email_1' && index.unique === true)).toBe(true);
     const activityIndexes = await connection.collection('useractivities').indexes();

@@ -14,7 +14,6 @@ import { ChatSessionSchema } from '../../src/modules/chat-sessions/schemas/chat-
 import { CounterSchema } from '../../src/modules/counters/schemas/counter.schema';
 import { CustomerSchema } from '../../src/modules/customers/schemas/customer.schema';
 import { DeliverySchema } from '../../src/modules/deliveries/schemas/delivery.schema';
-import { DemandForecastSchema } from '../../src/modules/demand-forecasts/schemas/demand-forecast.schema';
 import { EmployeeSchema } from '../../src/modules/employees/schemas/employee.schema';
 import { InventorySchema } from '../../src/modules/inventory/schemas/inventory.schema';
 import { KnowledgeDocumentSchema } from '../../src/modules/knowledge-documents/schemas/knowledge-document.schema';
@@ -84,7 +83,6 @@ const idPrefixes: Record<string, string> = {
   pointTransaction: '00000010',
   knowledge: '00000011',
   aiConfig: '00000012',
-  forecast: '00000013',
   activity: '00000014',
   aiFeedback: '00000015',
   voucher: '00000016',
@@ -245,6 +243,11 @@ export async function seedDatabase(uri = loadMongoUri(), reset = process.argv.in
   randomState = SEED;
   const connection = await createConnection(uri).asPromise();
   try {
+    const hasLegacyForecastCollection = connection.db
+      ? await connection.db.listCollections({ name: 'demandforecasts' }, { nameOnly: true }).hasNext()
+      : false;
+    if (hasLegacyForecastCollection) await connection.dropCollection('demandforecasts');
+
     const categories: SeedCollection[] = [];
     const { categories: categoryRecords, products, productRecords } = makeCatalog();
     const stores = makeStores();
@@ -617,19 +620,7 @@ export async function seedDatabase(uri = loadMongoUri(), reset = process.argv.in
     const aiConfigs = [
       { featureKey: 'CHATBOT', enabled: true, modelName: 'default-chat-model', parameters: { temperature: 0.2, maxTokens: 1024 } },
       { featureKey: 'RECOMMENDATION', enabled: true, modelName: 'hybrid-recommendation', parameters: { limit: 8 } },
-      { featureKey: 'FORECAST', enabled: true, modelName: 'seasonal-forecast', parameters: { periodDays: 7 } },
     ].map((config, index) => ({ ...config, configId: idFor('aiConfig', index + 1), createdAt: daysAgo(30), updatedAt: new Date() }));
-    const demandForecasts = Array.from({ length: 30 }, (_, index) => ({
-      forecastId: idFor('forecast', index + 1),
-      storeId: storeIds[index % storeIds.length],
-      productId: products[(index * 7) % products.length].productId,
-      periodStart: daysAgo(index % 7),
-      predictedQuantity: 10 + Math.floor(random() * 80),
-      alertType: index % 5 === 0 ? 'SHORTAGE' : index % 7 === 0 ? 'OVERSTOCK' : 'NORMAL',
-      decisionStatus: 'PENDING',
-      createdAt: daysAgo(1),
-      updatedAt: daysAgo(1),
-    }));
     const activityRecords = Array.from({ length: 20 }, (_, index) => ({
       activityId: idFor('activity', index + 1),
       ...(index % 2 === 0 ? { customerId: customerIds[index % customerIds.length] } : { anonymousId: `guest-${index + 1}` }),
@@ -666,7 +657,6 @@ export async function seedDatabase(uri = loadMongoUri(), reset = process.argv.in
     addCollection(categories, 'Counter', 'counters', 'counterId', CounterSchema, counterRecords);
     addCollection(categories, 'Customer', 'customers', 'customerId', CustomerSchema, customers);
     addCollection(categories, 'Delivery', 'deliveries', 'deliveryId', DeliverySchema, deliveryRecords);
-    addCollection(categories, 'DemandForecast', 'demandforecasts', 'forecastId', DemandForecastSchema, demandForecasts);
     addCollection(categories, 'Employee', 'employees', 'employeeId', EmployeeSchema, employees);
     addCollection(categories, 'Inventory', 'inventories', 'inventoryId', InventorySchema, inventoryRecords);
     addCollection(categories, 'KnowledgeDocument', 'knowledgedocuments', 'knowledgeId', KnowledgeDocumentSchema, knowledgeRecords);

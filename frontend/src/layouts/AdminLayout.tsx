@@ -8,7 +8,6 @@ import {
   LogOut,
   MapPinned,
   PackageSearch,
-  TrendingUp,
   TicketPercent,
   UsersRound,
 } from 'lucide-react';
@@ -25,7 +24,6 @@ const adminSections = [
   { label: 'Tồn kho', path: '/admin/inventory', icon: Boxes },
   { label: 'Đơn hàng', path: '/admin/orders', icon: ClipboardList },
   { label: 'Nhân viên', path: '/admin/employees', icon: UsersRound },
-  { label: 'Dự báo AI', path: '/admin/forecast', icon: TrendingUp },
 ];
 
 export function AdminLayout() {

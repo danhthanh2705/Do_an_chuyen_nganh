@@ -4,7 +4,7 @@ import { Connection } from 'mongoose';
 
 const dashboardCollections = [
   'aifeedbacks', 'aiconfigs', 'carts', 'cartitems', 'categories', 'chatmessages', 'chatsessions',
-  'counters', 'customers', 'deliveries', 'demandforecasts', 'employees', 'inventories',
+  'counters', 'customers', 'deliveries', 'employees', 'inventories',
   'knowledgedocuments', 'memberships', 'membershiplevels', 'orderitems', 'orders', 'payments',
   'pointtransactions', 'products', 'reviews', 'stores', 'users', 'useractivities', 'vouchers',
 ] as const;
