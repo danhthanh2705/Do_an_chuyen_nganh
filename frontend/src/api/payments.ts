@@ -98,4 +98,22 @@ export const paymentsApi = {
     return http.get<{ success: true; data: OrderPayment[] }>(`/orders/${orderId}/payments`).then(unwrapApiResponse);
   },
   retry: async (orderId: string, paymentMethod: PaymentMethod, amount?: number) => paymentsApi.create(orderId, paymentMethod, amount),
+  confirmPayment: async (paymentId: string): Promise<PaymentRequestResult> => {
+    if (isMockEnabled) {
+      const orderId = paymentId.replace(/^mock-payment-/, '').replace(/-\d+$/, '');
+      const existing = readMockPayment(orderId);
+      const updated: PaymentRequestResult = {
+        ...(existing ?? { paymentId, paymentMethod: 'TRANSFER', paymentStatus: 'SUCCESS' }),
+        paymentStatus: 'SUCCESS',
+        transactionId: `FT${Date.now()}`,
+        paidAt: new Date().toISOString(),
+      };
+      saveMockPayment(orderId, updated);
+      return updated;
+    }
+    return http.post<{ success: true; data: PaymentRequestResult }>(`/payments/mock/${paymentId}/confirm`, {
+      status: 'SUCCESS',
+      transactionCode: `FT${Date.now()}`,
+    }).then(unwrapApiResponse);
+  },
 };

@@ -33,8 +33,7 @@ function paymentLabel(status?: string) {
 
 function methodLabel(method?: CustomerOrder['paymentMethod']) {
   if (method === 'CASH') return 'Thanh toán khi nhận hàng';
-  if (method === 'CARD') return 'Thẻ ngân hàng';
-  if (method === 'TRANSFER') return 'Chuyển khoản QR';
+  if (method === 'TRANSFER' || method === 'CARD') return 'Chuyển khoản QR';
   return 'Đang cập nhật';
 }
 
