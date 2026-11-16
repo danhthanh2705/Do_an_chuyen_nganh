@@ -62,7 +62,7 @@ export class PaymentsController {
     return this.payments.handleWebhook(provider, dto, request.rawBody, signature);
   }
 
-  @Roles(Role.ADMIN)
+  @Roles(Role.CUSTOMER, Role.STAFF, Role.ADMIN)
   @Post('mock/:paymentId/confirm')
   mockConfirm(
     @Param('paymentId') paymentId: string,

@@ -16,7 +16,7 @@ export const CustomerAddressSchema = SchemaFactory.createForClass(CustomerAddres
 
 @Schema({ timestamps: true, versionKey: false })
 export class Customer {
-  @Prop({ type: String, required: true, unique: true, default: randomUUID }) customerId: string;
+  @Prop({ type: String, required: true, unique: true, default: () => randomUUID() }) customerId: string;
   @Prop({ type: String, required: true }) userId: string;
   @Prop({ type: String, default: '' }) address: string;
   @Prop({ type: [CustomerAddressSchema], default: [], validate: (addresses: CustomerAddress[]) => addresses.length <= 5 })

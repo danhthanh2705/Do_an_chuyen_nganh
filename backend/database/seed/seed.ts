@@ -1,7 +1,17 @@
+import * as dns from 'node:dns';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import * as bcrypt from 'bcryptjs';
 import { Connection, Schema, Types, createConnection } from 'mongoose';
+
+try {
+  const servers = dns.getServers();
+  if (!servers || servers.length === 0 || (servers.length === 1 && servers[0] === '127.0.0.1')) {
+    dns.setServers(['8.8.8.8', '1.1.1.1']);
+  }
+} catch {
+  // ignore
+}
 import {
   AIFeedbackSchema,
 } from '../../src/modules/ai-feedback/schemas/ai-feedback.schema';
@@ -232,7 +242,19 @@ function makeStores(): SeedRecord[] {
       saturday: { open: '07:00', close: '22:00', closed: false },
       sunday: { open: '07:00', close: '22:00', closed: false },
     },
-    deliveryZones: [{ district: store.district, wards: ['Phường 1', 'Phường 2', 'Phường 3', 'Phường 4'] }],
+    deliveryZones: [
+      { district: store.district, wards: [] },
+      { district: 'Quận 1', wards: [] },
+      { district: 'Quận 3', wards: [] },
+      { district: 'Quận 4', wards: [] },
+      { district: 'Quận 5', wards: [] },
+      { district: 'Quận 7', wards: [] },
+      { district: 'Quận 10', wards: [] },
+      { district: 'Phú Nhuận', wards: [] },
+      { district: 'Bình Thạnh', wards: [] },
+      { district: 'Tân Bình', wards: [] },
+      { district: 'Hồ Chí Minh', wards: [] },
+    ],
     shippingFee: { baseFee: 20000, freeShipThreshold: 300000 },
     createdAt: daysAgo(180),
     updatedAt: new Date(),

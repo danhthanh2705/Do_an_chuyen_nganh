@@ -1,3 +1,12 @@
+const dns = require('node:dns');
+try {
+  const servers = dns.getServers();
+  if (!servers || servers.length === 0 || (servers.length === 1 && servers[0] === '127.0.0.1')) {
+    dns.setServers(['8.8.8.8', '1.1.1.1']);
+  }
+} catch {
+  // ignore
+}
 const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
 const { randomUUID } = require('crypto');
@@ -7,8 +16,26 @@ const { EmployeeSchema } = require('../../dist/modules/employees/schemas/employe
 const { CartSchema } = require('../../dist/modules/carts/schemas/cart.schema');
 const { MembershipSchema } = require('../../dist/modules/memberships/schemas/membership.schema');
 
+function loadMongoUri() {
+  if (process.env.MONGODB_URI) return process.env.MONGODB_URI;
+  const fs = require('fs');
+  const path = require('path');
+  const files = [path.resolve(process.cwd(), '.env'), path.resolve(process.cwd(), '..', '.env')];
+  for (const file of files) {
+    if (!fs.existsSync(file)) continue;
+    for (const line of fs.readFileSync(file, 'utf8').split(/\r?\n/)) {
+      const match = line.match(/^\s*(?:export\s+)?MONGODB_URI\s*=\s*(.*?)\s*$/);
+      if (match) {
+        let uri = match[1].replace(/^(['"])(.*)\1$/, '$2').replace(/\s+#.*$/, '').trim();
+        if (uri) return uri;
+      }
+    }
+  }
+  return process.env.MONGODB_URI || process.env.MONGO_URI;
+}
+
 async function seedAuthUsers() {
-  const uri = process.env.MONGODB_URI || process.env.MONGO_URI;
+  const uri = loadMongoUri();
   if (!uri) throw new Error('Thiếu MONGODB_URI trong môi trường chạy seed');
   await mongoose.connect(uri);
 
@@ -67,7 +94,7 @@ async function seedAuthUsers() {
 }
 
 seedAuthUsers().catch(async (error) => {
-  console.error('Seed auth thất bại:', error.message);
+  console.error('Seed auth thất bại:', error.stack || error);
   await mongoose.disconnect();
   process.exitCode = 1;
 });

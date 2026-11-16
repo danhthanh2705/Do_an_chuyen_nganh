@@ -4,7 +4,7 @@ import { applyIdPlugin } from '../../../common/database/id-plugin';
 
 @Schema({ timestamps: true, versionKey: false })
 export class Membership {
-  @Prop({ type: String, required: true, unique: true, default: randomUUID }) membershipId: string;
+  @Prop({ type: String, required: true, unique: true, default: () => randomUUID() }) membershipId: string;
   @Prop({ type: String, required: true }) customerId: string;
   @Prop({ type: String, required: true, unique: true }) memberCode: string;
   @Prop({ type: Number, default: 0, min: 0 }) pointBalance: number;

@@ -19,7 +19,11 @@ export interface CheckoutState {
 const STORAGE_KEY = 'muadee-checkout';
 const EMPTY_STATE: CheckoutState = { voucherCode: '', discountAmount: 0, receiveMethod: 'DELIVERY', addressId: '', shippingAddress: '', recipientName: '', recipientPhone: '', pickupTime: '', pickupNote: '', orderNote: '', paymentMethod: 'CASH', idempotencyKey: '', initialized: false };
 function readState(): CheckoutState {
-  try { return { ...EMPTY_STATE, ...JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') as Partial<CheckoutState> }; }
+  try {
+    const parsed = { ...EMPTY_STATE, ...JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') as Partial<CheckoutState> };
+    if (parsed.paymentMethod === 'CARD') parsed.paymentMethod = 'CASH';
+    return parsed;
+  }
   catch { return EMPTY_STATE; }
 }
 

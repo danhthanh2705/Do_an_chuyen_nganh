@@ -1,4 +1,4 @@
-import type { CustomerOrder, OrderStatus, OrderTrackingEvent } from '../types/order';
+import type { CustomerOrder, OrderStatus, OrderTrackingEvent, PaymentMethod } from '../types/order';
 import { mockOrders, mockTrackingEvents } from './mock/account';
 import { mockProducts, mockStockByStore, mockStores } from './mock/data';
 import { http, isMockEnabled, unwrapApiResponse, errorMessage } from './client';
@@ -180,7 +180,7 @@ export const ordersApi = {
     const totalAmount = Math.max(0, subtotal - discountAmount) + shippingFee;
     return { subtotal, discountAmount, shippingFee, totalAmount, estimatedPoints: Math.floor(totalAmount / 10_000), hasWeightedItems: cart.items.some((item) => item.product.unit === 'kg') };
   },
-  create: async (input: { storeId: string; receiveMethod: 'DELIVERY' | 'PICKUP'; shippingAddress?: string; recipientName?: string; recipientPhone?: string; pickupTime?: string; pickupNote?: string; note?: string; voucherCode?: string }, idempotencyKey: string, estimatedTotal = 0): Promise<CustomerOrder> => {
+  create: async (input: { storeId: string; receiveMethod: 'DELIVERY' | 'PICKUP'; paymentMethod?: PaymentMethod; shippingAddress?: string; recipientName?: string; recipientPhone?: string; pickupTime?: string; pickupNote?: string; note?: string; voucherCode?: string }, idempotencyKey: string, estimatedTotal = 0): Promise<CustomerOrder> => {
     if (isMockEnabled) {
       if (idempotencyKey && mockIdempotencyMap[idempotencyKey]) {
         const existing = findMockOrder(mockIdempotencyMap[idempotencyKey]);

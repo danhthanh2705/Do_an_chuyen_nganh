@@ -1,6 +1,16 @@
+import * as dns from 'node:dns';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createConnection, Schema } from 'mongoose';
+
+try {
+  const servers = dns.getServers();
+  if (!servers || servers.length === 0 || (servers.length === 1 && servers[0] === '127.0.0.1')) {
+    dns.setServers(['8.8.8.8', '1.1.1.1']);
+  }
+} catch {
+  // ignore
+}
 import { AIFeedbackSchema } from '../../src/modules/ai-feedback/schemas/ai-feedback.schema';
 import { AIConfigSchema } from '../../src/modules/ai-config/schemas/ai-config.schema';
 import { CartSchema } from '../../src/modules/carts/schemas/cart.schema';

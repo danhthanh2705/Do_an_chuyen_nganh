@@ -175,6 +175,7 @@ export default function CheckoutPage() {
       const order = await ordersApi.create({
         storeId: selection.storeId,
         receiveMethod: checkout.receiveMethod,
+        paymentMethod: checkout.paymentMethod as PaymentMethod,
         shippingAddress: checkout.receiveMethod === 'DELIVERY' ? checkout.shippingAddress : undefined,
         recipientName: checkout.receiveMethod === 'DELIVERY' ? checkout.recipientName : undefined,
         recipientPhone: checkout.receiveMethod === 'DELIVERY' ? checkout.recipientPhone : undefined,
