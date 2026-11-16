@@ -4,7 +4,7 @@ import { applyIdPlugin } from '../../../common/database/id-plugin';
 
 @Schema({ timestamps: true, versionKey: false })
 export class Employee {
-  @Prop({ type: String, required: true, unique: true, default: randomUUID }) employeeId: string;
+  @Prop({ type: String, required: true, unique: true, default: () => randomUUID() }) employeeId: string;
   @Prop({ type: String, required: true, unique: true }) userId: string;
   @Prop({ type: String, required: true, unique: true }) employeeCode: string;
   @Prop({ type: String, required: true }) employeeRole: string;

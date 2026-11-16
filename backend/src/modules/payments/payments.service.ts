@@ -36,7 +36,12 @@ export class PaymentsService {
       throw new BadRequestException({ code: ErrorCode.PAYMENT_METHOD_UNSUPPORTED, message: 'Thanh toán tiền mặt được thu khi nhận hàng, không tạo giao dịch trực tuyến' });
     }
     if (order.paymentMethod !== dto.paymentMethod) {
-      throw new ConflictException({ code: ErrorCode.PAYMENT_METHOD_MISMATCH, message: 'Phương thức thanh toán không khớp với đơn hàng' });
+      if (order.orderStatus === 'PENDING' && order.paymentStatus === 'PENDING' && (order.paidAmount ?? 0) === 0) {
+        order.paymentMethod = dto.paymentMethod;
+        await this.orders.updateOne({ _id: order._id }, { $set: { paymentMethod: dto.paymentMethod } }).exec();
+      } else {
+        throw new ConflictException({ code: ErrorCode.PAYMENT_METHOD_MISMATCH, message: 'Phương thức thanh toán không khớp với đơn hàng' });
+      }
     }
     if (order.orderStatus !== 'PENDING' || order.paymentStatus === 'SUCCESS') {
       throw new ConflictException({ code: ErrorCode.PAYMENT_ALREADY_SETTLED, message: 'Đơn hàng không còn chờ thanh toán' });
@@ -51,9 +56,9 @@ export class PaymentsService {
       throw new ConflictException({ code: ErrorCode.PAYMENT_EXPIRED, message: 'Thời gian giữ tồn của đơn hàng đã hết hạn' });
     }
     if (dto.paymentMethod === 'TRANSFER') {
-      const bankId = this.config.get<string>('payment.bankId');
-      const accountNumber = this.config.get<string>('payment.accountNumber');
-      const accountName = this.config.get<string>('payment.accountName');
+      const bankId = this.config.get<string>('payment.bankId') || (this.config.get<string>('nodeEnv') !== 'production' ? '970422' : '');
+      const accountNumber = this.config.get<string>('payment.accountNumber') || (this.config.get<string>('nodeEnv') !== 'production' ? '0123456789' : '');
+      const accountName = this.config.get<string>('payment.accountName') || (this.config.get<string>('nodeEnv') !== 'production' ? 'CONG TY TNHH MUADEE' : '');
       if (!bankId || !accountNumber || !accountName) {
         throw new ServiceUnavailableException({ code: ErrorCode.PAYMENT_CONFIGURATION_MISSING, message: 'Chưa cấu hình thông tin tài khoản nhận chuyển khoản' });
       }
@@ -90,10 +95,10 @@ export class PaymentsService {
     }
 
     if (dto.paymentMethod === 'TRANSFER') {
-      const bankId = this.config.get<string>('payment.bankId')!;
-      const accountNumber = this.config.get<string>('payment.accountNumber')!;
-      const accountName = this.config.get<string>('payment.accountName')!;
-      const bankName = this.config.get<string>('payment.bankName') ?? bankId;
+      const bankId = this.config.get<string>('payment.bankId') || (this.config.get<string>('nodeEnv') !== 'production' ? '970422' : '');
+      const accountNumber = this.config.get<string>('payment.accountNumber') || (this.config.get<string>('nodeEnv') !== 'production' ? '0123456789' : '');
+      const accountName = this.config.get<string>('payment.accountName') || (this.config.get<string>('nodeEnv') !== 'production' ? 'CONG TY TNHH MUADEE' : '');
+      const bankName = this.config.get<string>('payment.bankName') || (this.config.get<string>('nodeEnv') !== 'production' ? 'MB Bank' : bankId);
       const qrCodeUrl = new URL(
         `https://img.vietqr.io/image/${encodeURIComponent(bankId)}-${encodeURIComponent(accountNumber)}-compact2.png`,
       );
@@ -103,6 +108,7 @@ export class PaymentsService {
       return {
         paymentId: String(payment._id),
         paymentMethod: payment.paymentMethod,
+        paymentStatus: payment.paymentStatus,
         amount,
         transferContent: order.orderCode,
         expiresAt: payment.expiresAt,
@@ -110,6 +116,7 @@ export class PaymentsService {
         accountNumber,
         accountName,
         qrCodeUrl: qrCodeUrl.toString(),
+        qrImageUrl: qrCodeUrl.toString(),
       };
     }
 
@@ -121,6 +128,7 @@ export class PaymentsService {
     return {
       paymentId: String(payment._id),
       paymentMethod: payment.paymentMethod,
+      paymentStatus: payment.paymentStatus,
       amount,
       paymentUrl: checkoutUrl.toString(),
       expiresAt: payment.expiresAt,
@@ -131,13 +139,43 @@ export class PaymentsService {
     const payment = await this.findPayment(id);
     const order = await this.findOrder(payment.orderId);
     await this.assertAccess(user, order);
-    return payment;
+    return this.enrichPayment(payment, order);
   }
 
   async findForOrder(user: AuthUser, orderId: string) {
     const order = await this.findOrder(orderId);
     await this.assertAccess(user, order);
-    return this.payments.find({ orderId: String(order._id) }).sort({ createdAt: -1 }).exec();
+    const list = await this.payments.find({ orderId: String(order._id) }).sort({ createdAt: -1 }).exec();
+    return list.map((p) => this.enrichPayment(p, order));
+  }
+
+  private enrichPayment(payment: Payment, order?: Order) {
+    const paymentDoc = payment as unknown as { toObject?: () => Record<string, unknown> };
+    const raw: Record<string, unknown> = typeof paymentDoc.toObject === 'function'
+      ? paymentDoc.toObject()
+      : { ...(payment as unknown as Record<string, unknown>) };
+    raw.paymentId = String(raw.paymentId || raw._id);
+    if (raw.paymentMethod === 'TRANSFER') {
+      const bankId = this.config.get<string>('payment.bankId') || (this.config.get<string>('nodeEnv') !== 'production' ? '970422' : '');
+      const accountNumber = this.config.get<string>('payment.accountNumber') || (this.config.get<string>('nodeEnv') !== 'production' ? '0123456789' : '');
+      const accountName = this.config.get<string>('payment.accountName') || (this.config.get<string>('nodeEnv') !== 'production' ? 'CONG TY TNHH MUADEE' : '');
+      const bankName = this.config.get<string>('payment.bankName') || (this.config.get<string>('nodeEnv') !== 'production' ? 'MB Bank' : bankId);
+      raw.bankName = raw.bankName ?? bankName;
+      raw.accountNumber = raw.accountNumber ?? accountNumber;
+      raw.accountName = raw.accountName ?? accountName;
+      raw.transferContent = raw.transferContent || order?.orderCode;
+      if (bankId && accountNumber) {
+        const qrCodeUrl = new URL(
+          `https://img.vietqr.io/image/${encodeURIComponent(bankId)}-${encodeURIComponent(accountNumber)}-compact2.png`,
+        );
+        qrCodeUrl.searchParams.set('amount', String(raw.amount));
+        if (raw.transferContent) qrCodeUrl.searchParams.set('addInfo', String(raw.transferContent));
+        if (accountName) qrCodeUrl.searchParams.set('accountName', accountName);
+        raw.qrCodeUrl = qrCodeUrl.toString();
+        raw.qrImageUrl = qrCodeUrl.toString();
+      }
+    }
+    return raw;
   }
 
   async handleWebhook(provider: string, dto: PaymentWebhookDto, rawBody: Buffer, signature?: string) {
@@ -153,12 +191,17 @@ export class PaymentsService {
       throw new NotFoundException({ code: ErrorCode.PAYMENT_NOT_FOUND, message: 'Không tìm thấy giao dịch' });
     }
     const payment = await this.findPayment(paymentId);
-    return this.applyWebhook('mock', {
+    const order = await this.findOrder(payment.orderId);
+    if (payment.paymentStatus === 'SUCCESS' && dto.status === 'SUCCESS') {
+      return this.enrichPayment(payment, order);
+    }
+    const updated = await this.applyWebhook('mock', {
       paymentId,
-      transactionCode: dto.transactionCode?.trim() || `mock-${paymentId}`,
+      transactionCode: dto.transactionCode?.trim() || `FT${Date.now()}${String(payment._id).slice(-4).toUpperCase()}`,
       amount: payment.amount,
       status: dto.status,
     });
+    return this.enrichPayment(updated, order);
   }
 
   async refund(user: AuthUser, id: string, dto: RefundPaymentDto) {

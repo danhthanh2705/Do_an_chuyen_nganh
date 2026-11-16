@@ -9,7 +9,7 @@ export type UserDocument = HydratedDocument<User>;
 // Collection User (báo cáo mục 3.2.3.1); userId là khóa định danh công khai.
 @Schema({ timestamps: true, versionKey: false })
 export class User {
-  @Prop({ type: String, required: true, unique: true, default: randomUUID }) userId: string;
+  @Prop({ type: String, required: true, unique: true, default: () => randomUUID() }) userId: string;
   @Prop({ required: true }) fullName: string;
   @Prop({ required: true, lowercase: true, trim: true }) email: string;
   @Prop() phone?: string;

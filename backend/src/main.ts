@@ -1,3 +1,13 @@
+import * as dns from 'node:dns';
+try {
+  const servers = dns.getServers();
+  if (!servers || servers.length === 0 || (servers.length === 1 && servers[0] === '127.0.0.1')) {
+    dns.setServers(['8.8.8.8', '1.1.1.1']);
+  }
+} catch {
+  // ignore
+}
+
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
