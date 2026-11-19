@@ -516,11 +516,17 @@ export class OrdersApiService {
       throw new ConflictException({ code: ErrorCode.STORE_UNAVAILABLE, message: 'Cửa hàng hiện không hoạt động' });
     }
     const cart = await this.carts.findOne({ customerId: customer.customerId }).exec();
-    if (!cart || cart.storeId !== store.storeId) {
-      throw new ConflictException({ code: ErrorCode.VALIDATION_ERROR, message: 'Giỏ hàng chưa có sản phẩm tại cửa hàng đã chọn' });
+    if (!cart) {
+      throw new ConflictException({ code: ErrorCode.VALIDATION_ERROR, message: 'Giỏ hàng đang trống' });
     }
     const cartItems = await this.cartItems.find({ cartId: cart.cartId }).exec();
-    if (!cartItems.length) throw new ConflictException({ code: ErrorCode.VALIDATION_ERROR, message: 'Giỏ hàng đang trống' });
+    if (!cartItems.length) {
+      throw new ConflictException({ code: ErrorCode.VALIDATION_ERROR, message: 'Giỏ hàng đang trống' });
+    }
+    if (!cart.storeId || cart.storeId !== store.storeId) {
+      cart.storeId = store.storeId;
+      await cart.save();
+    }
     if (dto.receiveMethod === 'DELIVERY') {
       if (!dto.shippingAddress?.trim()) {
         throw new BadRequestException({ code: ErrorCode.VALIDATION_ERROR, message: 'Vui lòng nhập địa chỉ giao hàng' });

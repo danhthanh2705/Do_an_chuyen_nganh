@@ -81,6 +81,9 @@ export default function CheckoutPage() {
     const response = await cartApi.get(selection.storeId);
     setCart(response);
     cartStore.replace(response.items);
+    if (response.storeId && response.storeId !== selection.storeId) {
+      storeSelectionStore.setStore(response.storeId);
+    }
     return response;
   }, [selection.storeId]);
 
